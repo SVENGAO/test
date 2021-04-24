@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>购物车</title>
+    <style>
+        .active {
+            background-color: #ddd;
+        }
+
+        .message-box {
+            padding: 10px 20px;
+        }
+
+        .success {
+            background: #4fc08d;
+            border: 1px solid #42b983;
+        }
+
+        .warning {
+            background: #f66;
+            border: 1px solid #d63200;
+        }
+
+        .message-box-close {
+            float: right;
+        }
+
+        .icon {
+            width: 1em;
+            height: 1em;
+            vertical-align: -0.15em;
+            fill: currentColor;
+            overflow: hidden;
+        }
+    </style>
+    <script src="https://at.alicdn.com/t/font_1281272_fepjp89tyz9.js"></script>
+</head>
+
+<body>
+    <!-- 宿主文件 -->
+    <div id="app">
+        <!-- 弹窗组件 -->
+        <message ref="msgSuccess" class="success">
+            <!--命名为title插槽内容-->
+            <template v-slot:title="slotProps">
+                <strong>{{slotProps.title}}</strong>
+
+            </template>
+            <!--插槽内容-->
+            <template v-slot:default>
+                新增课程成功
+
+            </template>
+        </message>
+
+        <!--message:show-->
+        <message ref="msgWaring" class="warning">
+            <template v-solt:title>
+                <strong>警告</strong>
+            </template>
+            <template v-solt:default>
+                请输入课程名称
+
+            </template>
+        </message>
+
+        <!--使用render方法实现heading组件-->
+        <heading level="1" :title="title" icon="gouwuche">
+            {{title}}
+        </heading>
+        <h2 :title="title">
+            <svg class="icon">
+                <use xlink:href="#icon-gouwuche"></use>
+            </svg>
+            <!--插入文本值-->
+            {{title}}
+        </h2>
+        <!-- toolbar -->
+        <div class="toolbar" v-permission="'admin'">
+            <button @click="$bus.$emit('message-close')">
+                清空提示框
+            </button>
+
+        </div>
+        <!--add class-->
+        <course-add v-model="course" @add-course="addCourse"></course-add>
+        <!--all update price-->
+        <p>
+            <input type="text" v-model.number="price">
+            <button @click="batchUpdate">批量更新价格</button>
+        </p>
+
+        <!--liebiao zujian-->
+        <course-list :courses="courses"></course-list>
+        <!--shangping zongshu -->
+        <p>
+            课程总数：{{totalCount}}
+            </p>
+    </div>
+
+    <script src="vue.js"></script>
+
+    <script src="./heading.js"></script>
+    <script>
+        //模拟用户角色
+        const role = 'user'
+        //总线
+        Vue.prototype = new Vue();
+        //弹窗组件
+        Vue.component('message', {
+            data() {
+                return {
+                    show: false
+                }
+            },
+            template: `
+        <div class="message-box" v-if="show">
+          <!--具名插槽-->
+          <slot name="title" title="来自message的标题">默认标题</slot>
+          <!--通过slot获取传入内容-->
+          <slot></slot>
+          <span class="message-box-close" 
+            @click="toggle">X</span>
+        </div>
+      `,
+            mounted() {
+                this.$bus.$on('message-close', () => {
+                    this.toggle()
+                })
+            },
+            methods: {
+                toggle() {
+                    this.show = !this.show;
+                }
+            },
+        })
+
+        // 实现自定义指令
+        Vue.directive('focus', {
+            inserted(el, binding) {
+                el.focus()
+            }
+        })
+
+        // v-permission="'admin'"
+        Vue.directive('permission', {
+            inserted(el, binding) {
+                console.log(binding);
+                // 若指定用户角色和当前用户角色不匹配则删除当前指令绑定的元素
+                if (role !== binding.value) {
+                    el.parentElement.removeChild(el)
+                }
+            }
+        })
+
+        // 课程新增组件
+        Vue.component('course-add', {
+            props: ['val'],
+            model: {
+                value: 'val',
+                event: 'change'
+            },
+            template: `
+        <div>
+          <!-- 用户输入 -->
+          <p>
+            <input type="text" :value="val" 
+              @change="onChange"
+              v-on:keydown.enter="addCourse"
+              ref="inp" v-focus>
+            <button @click="addCourse">新增</button>
+          </p>
+        </div>
+      `,
+            methods: {
+                addCourse() {
+                    // 派发事件通知父组件新增课程
+                    this.$emit('add-course')
+
+                },
+                onChange(e) {
+                    this.$emit('change', e.target.value)
+                }
+            },
+            // mounted () {
+            //   this.$refs.inp.focus();
+            // },
+        })
+
+        // 过滤器
+        // Vue.filter('currency', function(value){
+        //   return value;
+        // })
+
+        // 课程列表组件
+        Vue.component('course-list', {
+            data() {
+                return {
+                    selectedCourse: '',
+                }
+            },
+            props: {
+                courses: {
+                    type: Array,
+                    default: []
+                }
+            },
+            template: `
+        <div>
+            <!-- 条件渲染 -->
+            <p v-if="courses.length == 0">没有任何课程信息</p>
+            
+            <!-- 列表渲染 -->
+            <!-- <div v-for="c in courses" :key="c" 
+              :class="{active: selectedCourse === c}" @click="selectedCourse = c">
+              {{ c }}
+            </div> -->
+            <!-- style -->
+            <div class="course-list" v-else>
+              <div v-for="c in courses" :key="c.name"
+                :style="{backgroundColor: (selectedCourse === c ? '#ddd' : 'transparent')}"
+                @click="selectedCourse = c">
+                {{ c.name }} - {{ c.price | currency('￥') }}
+              </div>
+            </div>
+        </div>
+      `,
+            filters: {
+                currency(value, symbol = '￥') {
+                    return symbol + value
+                }
+            }
+        })
+
+        //需要使用到异步调用
+        function getCourses() {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve([{ name: 'webquanzhan' }, { name: 'webgaoji' }])
+                }, 2000)
+            })
+        }
+        //创建vue实例
+        const app = new Vue({
+            el: '#app',
+            data() {
+                return {
+                    title: '开课吧购物车',
+                    course: '',
+                    courses: [],
+                    totalCount: 0,
+                    price: 0,
+                }
+            },
+            async created() {
+                //组件实例已创建，由于未挂载，dom不存在
+                const courses = await getCourses()
+                this.courses = courses
+
+                //批量更新商品的价格
+                this.batchUpdate()
+            },
+            //mounted(){}
+            methods: {
+                addCourse() {
+                    if (this.course) {
+                        //添加courses到数组
+                        this.courses.push({ name: this.course })
+                        this.course = ''
+                        //显示提示信息
+                        this.$refs.msgSuccess.toggle()
+
+                    } else {
+                        //显示错误信息
+                        this.$refs.msgWaring.toggle()
+                    }
+                },
+
+                batchUpdate() {
+                    this.courses.forEach(c => {
+                        // c.price = this.price
+                        this.$set(c, 'price', this.price)
+                        // Vue.set(c, 'price', this.price)
+                    })
+                }
+            },
+
+            computed: {
+                total() {
+                    // 计算属性有缓存性：如果值没有发生变化，则页面不回重新渲染
+                    return this.courses.length + '门'
+                }
+            },
+
+            // 默认情况下watch初始化时不执
+            watch: {
+                courses: {
+                    immediate: true,//立即执行一次
+                    handler(newValue, oldValue) {
+                        this.totalCount = newValue.length + '门'
+                    }
+                }
+            },
+        })
+    </script>
+
+</body>
+
+</html>
